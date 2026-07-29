@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>엄마 근무표</title>
+<style>
+  @font-face {
+    font-family: "Pretendard Variable";
+    src: url("fonts/PretendardVariable.woff2") format("woff2-variations");
+    font-weight: 45 920;
+    font-display: swap;
+  }
+</style>
+<style>
+  :root {
+    --bg:#F6F7F9; --card:#FFF; --line:#E4E7EC; --ink:#1A1D23; --ink-soft:#6B7280;
+    --day-bg:#FFF4E0; --day-line:#E9B44C; --day-ink:#6B4200;
+    --night-bg:#E7F0FB; --night-line:#4A86C8; --night-ink:#123A63;
+    --off-bg:#FFFFFF; --off-line:#C9CDD4; --off-ink:#8A9099;
+    --leave-bg:#E7F3EC; --leave-line:#43976A; --leave-ink:#1B4A30;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo",
+                "Noto Sans KR","Malgun Gothic",sans-serif;
+    background:var(--bg); color:var(--ink); font-weight:500; -webkit-text-size-adjust:100%;
+  }
+  .wrap { max-width:480px; margin:0 auto; padding:20px 16px 48px; }
+
+  /* 히어로 카드 — 배경은 '근무 중'일 때만 색이 들어감 */
+  .today{border-radius:20px;padding:20px;border:2px solid #E4E7EC;background:#fff;
+    color:var(--ink);margin-bottom:16px}
+  .today.bg-day{background:var(--day-bg);border-color:var(--day-line);color:var(--day-ink)}
+  .today.bg-night{background:var(--night-bg);border-color:var(--night-line);color:var(--night-ink)}
+
+  .datesec{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .datesec .dtxt{font-size:20px;font-weight:700}
+  .tbadge{font-size:16px;font-weight:700;padding:4px 11px;border-radius:20px;flex:none}
+  .tbadge.day{background:#F7E4BC;color:var(--day-ink);border:1.5px solid #E2C387}
+  .tbadge.night{background:#CFE1F5;color:var(--night-ink);border:1.5px solid #A5C5E6}
+  .tbadge.off{background:#EDEFF2;color:#6B7280;border:1.5px solid #DADDE2}
+  .tbadge.leave{background:#D5EADD;color:var(--leave-ink);border:1.5px solid #AED3BF}
+
+  .ttl{font-size:24px;font-weight:800;line-height:1.35;letter-spacing:-.4px}
+  .tdesc{font-size:16px;opacity:.7;margin-top:7px}
+
+  .mates{margin-top:18px;padding-top:16px;border-top:1px solid rgba(0,0,0,.1);font-size:16px}
+  .mates .lb{opacity:.7;margin-bottom:5px;font-size:15px}
+  .mates .nm{font-weight:700;line-height:1.5}
+
+  .seg{display:flex;background:#E9EBEF;border-radius:12px;padding:4px;margin-bottom:14px}
+  .seg button{flex:1;padding:11px 0;border:none;border-radius:9px;background:none;
+    font-family:inherit;font-size:16px;font-weight:700;color:var(--ink-soft);cursor:pointer}
+  .seg button.on{background:#FFF;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 14px 12px}
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 12px}
+  .ptitle{font-size:18px;font-weight:700}
+  .navbtn{width:44px;height:44px;border-radius:12px;border:1.5px solid #B9BEC6;background:#fff;
+    font-size:28px;font-weight:800;line-height:1;color:var(--ink);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;padding:0 0 3px}
+
+  /* 주간 — 하루 한 줄, 시간은 글씨로 */
+  .dgroup{border:2px solid transparent;border-radius:12px;transition:border-color .2s ease}
+  .dgroup + .dgroup > .drow{border-top:1px solid var(--line)}
+  .dgroup.open{background:#fff;border-color:var(--ink)}
+  .dgroup.open > .drow{border-top-color:transparent}
+  .dgroup.open + .dgroup > .drow{border-top-color:transparent}
+  .drow{display:flex;align-items:center;gap:12px;width:100%;padding:13px 12px;border:none;
+    background:none;font-family:inherit;color:var(--ink);text-align:left;cursor:pointer}
+  .navbtn:disabled{opacity:.28;cursor:default}
+  .cell.unknown{background:#fff}
+  .cell.before{cursor:default}
+  .drow.before{cursor:default}
+  .drow.before .bar{background:transparent}
+  .drow.past{opacity:.4}
+  .dgroup.open .drow.past{opacity:1}
+  .drow.unknown .bar{background:#E4E7EC}
+  .drow.unknown .times{color:#9AA0A8}
+  .dexp{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s ease}
+  .dgroup.open .dexp{grid-template-rows:1fr}
+  .dexp-in{overflow:hidden;min-height:0}
+  .dexp-pad{padding:2px 14px 14px}
+  .dsub{font-size:15px;font-weight:500;color:var(--ink-soft);margin-bottom:14px}
+  .drow .bar{width:5px;align-self:stretch;border-radius:3px;flex:none}
+  .drow.day .bar{background:var(--day-line)}
+  .drow.night .bar{background:var(--night-line)}
+  .drow.off .bar{background:var(--off-line)}
+  .drow.leave .bar{background:var(--leave-line)}
+  .drow .body{flex:1;min-width:0}
+  .drow .top{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+  .drow .top .dt + .dw{margin-left:-5px}
+  .drow .dt{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+  .drow .dw{font-size:21px;font-weight:800;letter-spacing:-.3px}
+  .badge{font-size:16px;font-weight:700;padding:4px 12px;border-radius:20px;flex:none}
+  .drow .badge{margin-left:auto}
+  .badge.day{background:var(--day-bg);color:var(--day-ink);border:1.5px solid #EDD5A0}
+  .badge.night{background:var(--night-bg);color:var(--night-ink);border:1.5px solid #BDD5EE}
+  .badge.off{background:#F2F4F6;color:#7A8089;border:1.5px solid #E1E4E8}
+  .badge.leave{background:var(--leave-bg);color:var(--leave-ink);border:1.5px solid #BFDECB}
+  .drow .times{font-size:15px;font-weight:500;color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;line-height:1.4}
+  .drow.is-off .times{color:#9AA0A8}
+  .drow .todaytag{font-size:15px;font-weight:700;background:var(--ink);color:#fff;padding:2px 8px;border-radius:20px}
+
+  .grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px 3px}
+  .dow{text-align:center;font-size:15px;font-weight:500;color:var(--ink-soft);padding-bottom:10px}
+  .dow.sun{color:#C0392B}
+  .cell{aspect-ratio:1/1.28;border-radius:10px;border:1px solid transparent;min-width:0;overflow:hidden;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:3px;cursor:pointer;background:none;font-family:inherit;color:var(--ink);padding:0}
+  .cell.empty{cursor:default}
+  .cell .num{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;opacity:.75;
+    min-height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+  .cell .tag{font-size:15px;font-weight:800;line-height:1;min-height:16px}
+  .cell.day{background:var(--day-bg);color:var(--day-ink);border-color:#EDD5A0}
+  .cell.night{background:var(--night-bg);color:var(--night-ink);border-color:#BDD5EE}
+  .cell.off{background:#fff;color:var(--off-ink)}
+  .cell.leave{background:var(--leave-bg);color:var(--leave-ink);border-color:#BFDECB}
+  .cell.today .num{background:var(--ink);color:#fff;opacity:1;font-weight:700;
+    width:26px;height:26px;flex:none}
+  .cell.picked{border-color:var(--ink);border-width:2px}
+  .cell.has-override .num::after{content:"•";margin-left:2px}
+
+  .legend{display:flex;gap:14px;justify-content:center;margin-top:16px;font-size:15px;color:var(--ink-soft)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  .detailwrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s ease}
+  .detailwrap.open{grid-template-rows:1fr}
+  .detailwrap-in{overflow:hidden;min-height:0;padding-top:14px}
+  .detail{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .detail h2{font-size:20px;font-weight:800;margin-bottom:6px;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .detail h2 .dtoday{font-size:15px;font-weight:700;background:var(--ink);color:#fff;
+    padding:2px 9px;border-radius:20px;flex:none}
+  .detail .sub{font-size:15px;font-weight:500;color:var(--ink-soft);line-height:1.6}
+  .override{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+  .opts{display:flex;gap:6px}
+  .opt{flex:1;padding:10px 4px;border-radius:10px;border:1.5px solid #B9BEC6;background:#fff;
+    font-family:inherit;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer}
+  .opt.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .editbtn{width:100%;height:44px;border:1.5px solid #B9BEC6;border-radius:12px;background:#fff;
+    font-family:inherit;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer}
+  .editbtn:active{background:#F5F6F8}
+  .editbtn.solid{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .editbtn.solid:active{opacity:.85;background:var(--ink)}
+
+  .datalink{display:block;margin:22px auto 0;background:none;border:none;
+    font-family:inherit;font-size:15px;font-weight:500;color:#9AA0A8;
+    text-decoration:underline;cursor:pointer}
+  .modal-box textarea{width:100%;height:130px;padding:12px;border-radius:12px;
+    border:1.5px solid #B9BEC6;font-family:var(--font-mono,monospace);font-size:15px;
+    line-height:1.5;resize:vertical;margin-bottom:10px}
+  .saved{font-size:15px;font-weight:500;color:var(--ink-soft);margin-bottom:16px}
+  .err{font-size:15px;font-weight:500;color:#C0392B;margin-bottom:12px}
+
+  /* 확인 팝업 */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;
+    align-items:center;justify-content:center;padding:24px;z-index:100}
+  .modal[hidden]{display:none}
+  .modal-box{background:#fff;border-radius:16px;padding:22px 18px 16px;max-width:330px;width:100%}
+  .modal-box h3{font-size:20px;font-weight:800;line-height:1.35;margin-bottom:5px}
+  .modal-box p{font-size:16px;font-weight:500;color:var(--ink-soft);line-height:1.5;margin-bottom:16px}
+  .modal .opts{margin-bottom:18px}
+  .modal .opts .opt{padding:11px 2px;font-size:15px}
+  .modal-btns{display:flex;gap:8px}
+  .modal-btns button{flex:1;height:48px;border-radius:12px;font-family:inherit;
+    font-size:16px;font-weight:700;cursor:pointer}
+  #modalNo{background:#fff;border:1.5px solid #B9BEC6;color:var(--ink)}
+  #modalYes{background:var(--ink);border:none;color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="today"></div>
+
+  <div class="seg">
+    <button id="segWeek" class="on">주간</button>
+    <button id="segMonth">달력</button>
+  </div>
+
+  <div class="panel" id="panel"></div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--day-line)"></i>데이</span>
+    <span><i class="dot" style="background:var(--night-line)"></i>나이트</span>
+    <span>🏝️ 연차</span>
+    <span><i class="dot" style="background:#fff;box-shadow:inset 0 0 0 1px #C9CDD4"></i>휴무</span>
+  </div>
+
+  <div class="detailwrap" id="detailWrap">
+    <div class="detailwrap-in">
+      <div class="detail" id="detail"></div>
+    </div>
+  </div>
+  <button class="datalink" id="dataLink">근무표 데이터 넣기</button>
+</div>
+
+<div class="modal" id="dataModal" hidden>
+  <div class="modal-box">
+    <h3>근무표 데이터 넣기</h3>
+    <p>받은 데이터를 그대로 붙여넣으세요</p>
+    <textarea id="dataInput" placeholder='{"2026-08": {"shifts":"...", "dayOnlyOff":[...]}}'></textarea>
+    <div class="err" id="dataErr" hidden></div>
+    <div class="saved" id="dataSaved"></div>
+    <div class="modal-btns">
+      <button id="dataNo">취소</button>
+      <button id="dataYes">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box">
+    <h3 id="modalTitle"></h3>
+    <p id="modalMsg"></p>
+    <div class="opts" id="modalOpts"></div>
+    <div class="modal-btns">
+      <button id="modalNo">취소</button>
+      <button id="modalYes">바꾸기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── 근무표에서 읽어낸 사실 ───────────────────────── */
+const ANCHOR  = new Date(2026, 6, 2);              // A조 데이 1일차
+const PATTERN = ['day','day','night','night','off','off'];
+const OFFSET  = { A:0, C:2, B:4 };                 // 조별로 밀린 일수
+
+const ME = '배광월';
+const STAFF = [
+  { name:'엄선자', team:'A' }, { name:'김명숙', team:'A' }, { name:'배광월', team:'A' },
+  { name:'정은진', team:'C' }, { name:'명윤아', team:'C' }, { name:'윤경애', team:'C' },
+  { name:'장정숙', team:'B' }, { name:'임인숙', team:'B' }, { name:'이미화', team:'B' }
+];
+const DAY_ONLY = { name:'이안희' };   // 주간 전담. 쉬는 날은 근무표 데이터에서 읽는다
+
+const TIME  = { dayIn:'09:00', dayOut:'18:00', nightIn:'17:30', nightOut:'09:00' };
+const LABEL = { day:'데이', night:'나이트', off:'휴무', leave:'연차' };
+const SHORT = { day:'D', night:'N', off:'', leave:'🏝️' };   // 월 달력 표기
+const WEEK  = ['일','월','화','수','목','금','토'];
+const DAY_MS = 86400000;
+
+/* ── 계산 ──────────────────────────────────────── */
+const strip   = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d,n) => new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
+const key     = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
+function teamShift(team, d) {
+  const n = Math.round((strip(d) - ANCHOR)/DAY_MS) - OFFSET[team];
+  return PATTERN[((n % 6) + 6) % 6];
+}
+
+// 폰에 영구 저장한다
+const store = {
+  load: k => { try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch(e) { return {}; } },
+  save: (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+};
+
+// 앱에 기본으로 들어있는 근무표 (인터넷이 없어도 이만큼은 나온다)
+const BUILT_IN = {
+  "2026-07": {
+    "shifts": "ODDNNOODDNNOODDNNOODDNNOODDNNOO",
+    "dayOnlyOff": [4, 8, 12, 16, 20, 22, 24, 28, 30]
+  }
+};
+
+let overrides   = store.load('overrides');   // 손으로 고친 날
+// 받아온 근무표가 있으면 기본값 위에 덮어쓴다
+let monthlyData = Object.assign({}, BUILT_IN, store.load('monthly'));
+
+const CHAR2SHIFT = { D:'day', N:'night', O:'off', L:'leave' };
+const monthKey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+
+// 넣어둔 근무표에서 그 날 근무를 꺼낸다 (없으면 null)
+function monthlyShift(d) {
+  const rec = monthlyData[monthKey(d)];
+  if (!rec || !rec.shifts) return null;
+  return CHAR2SHIFT[rec.shifts[d.getDate()-1]] || null;
+}
+
+const myTeam  = STAFF.find(p => p.name === ME).team;
+const shiftOf = d => overrides[key(d)]         // 1층: 손으로 고친 날
+                  || monthlyShift(d)           // 2층: 넣어둔 근무표
+                  || teamShift(myTeam, d);     // 3층: 6일 주기 계산
+
+// 주간 전담은 근무표를 넣은 달에만 이름을 띄운다.
+// 데이터가 없으면 틀리게 보여주느니 아예 안 보여준다.
+function dayOnlyWorks(d) {
+  const rec = monthlyData[monthKey(d)];
+  if (!rec || !rec.dayOnlyOff) return false;
+  return !rec.dayOnlyOff.includes(d.getDate());
+}
+
+function coworkers(d) {
+  const s = shiftOf(d);
+  if (s === 'off' || s === 'leave') return [];
+  const list = STAFF.filter(p => p.name !== ME && teamShift(p.team,d) === s).map(p => p.name);
+  if (s === 'day' && dayOnlyWorks(d)) list.push(DAY_ONLY.name);
+  return list;
+}
+
+function scheduleOf(d) {
+  const cur = shiftOf(d), prev = shiftOf(addDays(d,-1)), ev = [];
+  if (prev === 'night') ev.push({ time:TIME.nightOut, what:'퇴근', note:'어젯밤 근무 끝' });
+  if (cur === 'day')   { ev.push({ time:TIME.dayIn, what:'출근' }); ev.push({ time:TIME.dayOut, what:'퇴근' }); }
+  if (cur === 'night')   ev.push({ time:TIME.nightIn, what:'출근', note:'내일 아침 9시 퇴근' });
+  return { shift:cur, events:ev };
+}
+
+// 주간 목록에 쓸 한 줄 — 시간을 글씨로 그대로
+function timeLine(d) {
+  const cur = shiftOf(d), prev = shiftOf(addDays(d,-1)), p = [];
+  if (prev === 'night') p.push(TIME.nightOut + ' 퇴근');
+  if (cur === 'day')  { p.push(TIME.dayIn + ' 출근'); p.push(TIME.dayOut + ' 퇴근'); }
+  if (cur === 'night')  p.push(TIME.nightIn + ' 출근');
+  if (!p.length) return cur === 'leave' ? '연차 쓴 날' : '쉬는 날';
+  if (cur === 'off')   return p[0] + '하고 쉼';
+  if (cur === 'leave') return p[0] + '하고 연차';
+  return p.join(' · ');
+}
+
+/* ── 화면 ──────────────────────────────────────── */
+let today = strip(new Date());
+let mode = 'week';
+let viewMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+let weekStart = addDays(today, -today.getDay());
+let picked = today;
+let openKey = null;      // 주간에서 펼쳐진 날짜
+let monthSel = null;     // 월간에서 고른 날짜. 고르기 전엔 상세 카드가 없다
+
+const fmt = d => (d.getMonth()+1)+'월 '+d.getDate()+'일 '+WEEK[d.getDay()]+'요일';
+
+/* ── 지금 이 순간의 상태 ────────────────────────── */
+const MIN = { dayIn:540, dayOut:1080, nightIn:1050, nightOut:540 };
+const GRACE = 120;   // 나이트 퇴근 후 "수고하셨어요"를 띄우는 시간(분)
+
+const fmtFull = d =>
+  d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+WEEK[d.getDay()]+')';
+
+// 남은 시간을 "N시간" / "N분"으로
+const leftWord = m => m >= 60 ? Math.floor(m/60)+'시간' : Math.max(1, m)+'분';
+
+// 위에 있는 조건이 이긴다
+function nowState() {
+  const now = new Date();
+  const t = now.getHours()*60 + now.getMinutes();
+  const d = strip(now);
+  const cur = shiftOf(d), prev = shiftOf(addDays(d,-1));
+
+  // 1) 연차 — 그 날 0시부터 자정까지 무조건 이김
+  if (cur === 'leave')
+    return { badge:'leave', bg:'none', title:'얏호 오늘은 연차 💖' };
+
+  // 2) 지금 근무 중인가
+  let work = null;
+  if (prev === 'night' && t < MIN.nightOut)
+    work = { type:'night', end:MIN.nightOut, endTime:TIME.nightOut };
+  else if (cur === 'day' && t >= MIN.dayIn && t < MIN.dayOut)
+    work = { type:'day', end:MIN.dayOut, endTime:TIME.dayOut };
+  else if (cur === 'night' && t >= MIN.nightIn)
+    work = { type:'night', end:MIN.nightOut + 1440, endTime:TIME.nightOut };
+
+  if (work) {
+    const left = work.end - t;
+    return left <= 60
+      ? { badge:work.type, bg:work.type, title:'1시간 뒤 퇴근입니다. 엄마 고생많았어!',
+          desc:work.endTime+' 퇴근' }
+      : { badge:work.type, bg:work.type, title:'광월이는 일하는 중',
+          desc:work.endTime+' 퇴근 예정' };
+  }
+
+  // 3) 나이트 퇴근 직후 — 잠깐은 수고 인사
+  if (prev === 'night' && t >= MIN.nightOut && t < MIN.nightOut + GRACE)
+    return { badge:cur, bg:'none', title:'오늘도 고생 많으셨슴당!', desc:'어여 집에 가슈' };
+
+  // 4) 오늘 아직 출근이 남았나 (자정 넘긴 경우, 나이트 2일차 낮 포함)
+  let inAt = null, inTime = null;
+  if (cur === 'day'   && t < MIN.dayIn)   { inAt = MIN.dayIn;   inTime = TIME.dayIn; }
+  if (cur === 'night' && t < MIN.nightIn) { inAt = MIN.nightIn; inTime = TIME.nightIn; }
+
+  if (inAt !== null) {
+    const left = inAt - t;
+    return left <= 60
+      ? { badge:cur, bg:'none', title:'1시간 뒤 출근입니다. 엄마 화이팅!',
+          desc:inTime+' 출근', mates:true }
+      : { badge:cur, bg:'none', title:leftWord(left)+' 뒤 출근',
+          desc:inTime+' 출근', mates:true };
+  }
+
+  // 5) 오늘 데이 근무를 마쳤다
+  if (cur === 'day' && t >= MIN.dayOut)
+    return { badge:cur, bg:'none', title:'오늘도 고생 많으셨슴당!', desc:'어여 집에 가슈' };
+
+  // 6) 나머지는 쉬는 날
+  return { badge:cur, bg:'none', title:'오늘은 쉬는 날' };
+}
+
+function renderToday() {
+  const st = nowState();
+  const box = document.getElementById('today');
+  box.className = 'today bg-' + st.bg;
+
+  let html = '<div class="datesec"><span class="dtxt">'+fmtFull(today)+'</span>'+
+             '<span class="tbadge '+st.badge+'">'+LABEL[st.badge]+'</span></div>'+
+             '<div class="ttl">'+st.title+'</div>';
+
+  if (st.desc) html += '<div class="tdesc">'+st.desc+'</div>';
+
+  if (st.mates) {
+    const m = coworkers(today);
+    if (m.length) html += '<div class="mates"><div class="lb">오늘 같이 일하는 분</div>'+
+                          '<div class="nm">'+m.join(' · ')+'</div></div>';
+  }
+  box.innerHTML = html;
+}
+
+const START = new Date(2026, 6, 1);   // 근무표가 있는 첫 날. 이전은 보여주지 않는다
+
+// 근무표가 확정된 마지막 날 (이번 달 말일, 또는 넣어둔 달 중 가장 뒤)
+function lastKnownDate() {
+  let max = new Date(today.getFullYear(), today.getMonth(), 1);
+  Object.keys(monthlyData).forEach(k => {
+    const [y,m] = k.split('-').map(Number);
+    const d = new Date(y, m-1, 1);
+    if (d > max) max = d;
+  });
+  return new Date(max.getFullYear(), max.getMonth()+1, 0);
+}
+
+const isKnown = d => d >= START && d <= lastKnownDate();
+
+// 화면에 뭘 보여줄지. 근무표 없는 날은 손으로 넣은 것만 보여준다
+const displayShift = d =>
+  d < START ? null : (isKnown(d) ? shiftOf(d) : (overrides[key(d)] || null));
+
+function renderWeek() {
+  const end = addDays(weekStart, 6);
+  let html = '<div class="phead">'+
+    '<button class="navbtn" id="prev" aria-label="지난주">‹</button>'+
+    '<div class="ptitle">'+(weekStart.getMonth()+1)+'/'+weekStart.getDate()+
+    ' ~ '+(end.getMonth()+1)+'/'+end.getDate()+'</div>'+
+    '<button class="navbtn" id="next" aria-label="다음주">›</button></div>';
+
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(weekStart, i);
+
+    if (d < START) {   // 근무표가 시작되기 전
+      html += '<div class="dgroup"><div class="drow before">'+
+        '<span class="bar"></span><span class="body"><span class="top">'+
+          '<span class="dt">'+(d.getMonth()+1)+'/'+d.getDate()+'</span>'+
+          '<span class="dw">('+WEEK[d.getDay()]+')</span>'+
+        '</span></span></div></div>';
+      continue;
+    }
+
+    const s = displayShift(d), isToday = +d === +today;
+    const open = openKey === key(d);
+
+    html += '<div class="dgroup'+(open?' open':'')+'">'+
+      '<button class="drow '+(s || 'unknown')+(isToday?' is-today':'')+
+        (d < today ? ' past' : '')+
+        ((s==='off'||s==='leave')?' is-off':'')+'" data-date="'+key(d)+'">'+
+        '<span class="bar"></span>'+
+        '<span class="body">'+
+          '<span class="top">'+
+            '<span class="dt">'+(d.getMonth()+1)+'/'+d.getDate()+'</span>'+
+            '<span class="dw">('+WEEK[d.getDay()]+')</span>'+
+            (isToday ? '<span class="todaytag">오늘</span>' : '')+
+            (s ? '<span class="badge '+s+'">'+LABEL[s]+'</span>' : '')+
+          '</span>'+
+          '<span class="times">'+
+            (s ? timeLine(d) : '근무표가 아직 안 나왔어요')+'</span>'+
+        '</span></button>'+
+      '<div class="dexp"><div class="dexp-in"><div class="dexp-pad">'+
+        detailBody(d)+'</div></div></div>'+
+    '</div>';
+  }
+  document.getElementById('panel').innerHTML = html;
+
+  document.getElementById('prev').onclick = () => { weekStart = addDays(weekStart,-7); openKey = null; renderWeek(); };
+  document.getElementById('next').onclick = () => { weekStart = addDays(weekStart, 7); openKey = null; renderWeek(); };
+
+  // 다시 그리지 않고 클래스만 토글해야 펼침 애니메이션이 살아난다
+  document.querySelectorAll('.drow[data-date]').forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.date, g = b.parentElement;
+      const wasOpen = g.classList.contains('open');
+      document.querySelectorAll('.dgroup.open').forEach(x => x.classList.remove('open'));
+      if (wasOpen) { openKey = null; return; }
+      g.classList.add('open');
+      openKey = k;
+      const [y,m,dd] = k.split('-').map(Number);
+      picked = new Date(y, m-1, dd);
+      setTimeout(() => g.scrollIntoView({ behavior:'smooth', block:'nearest' }), 280);
+    };
+  });
+  bindEditors();
+}
+
+function renderMonth() {
+  const first = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+  const last  = new Date(viewMonth.getFullYear(), viewMonth.getMonth()+1, 0).getDate();
+
+  let html = '<div class="phead">'+
+    '<button class="navbtn" id="prev" aria-label="이전 달">‹</button>'+
+    '<div class="ptitle">'+viewMonth.getFullYear()+'년 '+(viewMonth.getMonth()+1)+'월</div>'+
+    '<button class="navbtn" id="next" aria-label="다음 달">›</button></div>';
+
+  html += '<div class="grid">'+WEEK.map((w,i) =>
+    '<div class="dow'+(i===0?' sun':'')+'">'+w+'</div>').join('')+'</div><div class="grid">';
+
+  for (let i = 0; i < first.getDay(); i++) html += '<div class="cell empty"></div>';
+  for (let n = 1; n <= last; n++) {
+    const d = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), n);
+    if (d < START) {   // 근무표가 시작되기 전
+      html += '<div class="cell before"><span class="num">'+n+'</span>'+
+              '<span class="tag"></span></div>';
+      continue;
+    }
+    const s = displayShift(d), cls = ['cell', s || 'unknown'];
+    if (+d === +today)  cls.push('today');
+    else if (monthSel && +d === +monthSel) cls.push('picked');
+    if (overrides[key(d)]) cls.push('has-override');
+    html += '<button class="'+cls.join(' ')+'" data-date="'+key(d)+'">'+
+            '<span class="num">'+n+'</span><span class="tag">'+(s ? SHORT[s] : '')+'</span></button>';
+  }
+  html += '</div>';
+  document.getElementById('panel').innerHTML = html;
+
+  document.getElementById('prev').onclick = () => {
+    viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth()-1, 1);
+    monthSel = null; renderPanel();
+  };
+  document.getElementById('next').onclick = () => {
+    viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth()+1, 1);
+    monthSel = null; renderPanel();
+  };
+  bindPick('.cell[data-date]', renderMonth);
+}
+
+function bindPick(sel, rerender) {
+  document.querySelectorAll(sel).forEach(b => {
+    b.onclick = () => {
+      const [y,m,dd] = b.dataset.date.split('-').map(Number);
+      const d = new Date(y, m-1, dd);
+
+      if (monthSel && +d === +monthSel) {   // 같은 칸을 또 누르면 선택 해제
+        monthSel = null;
+        rerender();
+        closeDetail();
+        return;
+      }
+
+      picked = d;
+      monthSel = d;
+      rerender();
+      openDetail();
+      setTimeout(() => document.getElementById('detailWrap')
+        .scrollIntoView({ behavior:'smooth', block:'nearest' }), 280);
+    };
+  });
+}
+
+// 주간 아코디언과 월간 하단 카드가 함께 쓰는 상세 내용
+function detailBody(d) {
+  // 아직 근무표가 안 나온 날 — 연차만 미리 잡아둘 수 있다
+  if (!isKnown(d)) {
+    const on = overrides[key(d)] === 'leave';
+    return '<div class="dsub">아직 근무표가 안 나온 날이에요</div>'+
+      '<button class="editbtn'+(on?'':' solid')+'" data-leave="'+key(d)+'"'+(on?' data-on="1"':'')+'>'+
+      (on ? '연차 취소하기' : '\uD83C\uDFDD\uFE0F 미리 연차로 잡아두기')+'</button>';
+  }
+  const mates = coworkers(d);
+  return (mates.length ? '<div class="dsub">같이 일하는 분: '+mates.join(', ')+'</div>' : '')
+       + '<button class="editbtn" data-edit="'+key(d)+'">근무 바꾸기</button>';
+}
+
+function bindEditors() {
+  document.querySelectorAll('.editbtn[data-edit]').forEach(b => {
+    b.onclick = e => {
+      e.stopPropagation();
+      const [y,m,dd] = b.dataset.edit.split('-').map(Number);
+      openShiftPicker(new Date(y, m-1, dd));
+    };
+  });
+  document.querySelectorAll('.editbtn[data-leave]').forEach(b => {
+    b.onclick = e => {
+      e.stopPropagation();
+      const k = b.dataset.leave;
+      if (b.dataset.on) delete overrides[k]; else overrides[k] = 'leave';
+      store.save('overrides', overrides);
+      renderAll();
+    };
+  });
+}
+
+// 근무 바꾸기 팝업 — 고르고 [바꾸기]를 눌러야 반영된다
+function openShiftPicker(d) {
+  const cur = shiftOf(d);
+  let draft = cur;
+
+  const m = document.getElementById('modal');
+  document.getElementById('modalTitle').textContent = fmt(d);
+  document.getElementById('modalMsg').textContent = '무엇으로 바꿀까요?';
+
+  const paint = () => {
+    document.getElementById('modalOpts').innerHTML =
+      ['day','night','off','leave'].map(v =>
+        '<button class="opt'+(draft===v?' on':'')+'" data-set="'+v+'">'+
+        LABEL[v]+'</button>').join('');
+    document.querySelectorAll('#modalOpts .opt').forEach(b => {
+      b.onclick = () => { draft = b.dataset.set; paint(); };
+    });
+  };
+  paint();
+  m.hidden = false;
+
+  document.getElementById('modalNo').onclick = () => { m.hidden = true; };
+  document.getElementById('modalYes').onclick = () => {
+    m.hidden = true;
+    if (draft !== cur) {
+      // 계산값과 같아지면 수정 기록 자체를 지운다
+      if (draft === teamShift(myTeam, d)) delete overrides[key(d)];
+      else overrides[key(d)] = draft;
+      store.save('overrides', overrides);
+    }
+    renderAll();
+  };
+}
+
+function renderDetail() {
+  const s = displayShift(picked);
+  document.getElementById('detail').innerHTML =
+    '<h2>'+fmt(picked)+
+      (+picked === +today ? '<span class="dtoday">오늘</span>' : '')+
+      (s ? '<span class="badge '+s+'">'+LABEL[s]+'</span>' : '')+'</h2>'+
+    (isKnown(picked) ? '<div class="sub">'+timeLine(picked)+'</div>' : '')+
+    '<div class="override">'+detailBody(picked)+'</div>';
+  bindEditors();
+}
+
+
+// 상세 카드는 갑자기 사라지지 않고 접히면서 사라진다
+function openDetail() {
+  renderDetail();
+  document.getElementById('detailWrap').classList.add('open');
+}
+function closeDetail() {
+  const w = document.getElementById('detailWrap');
+  w.classList.remove('open');
+  setTimeout(() => {                      // 다 접힌 뒤에 내용을 비운다
+    if (!w.classList.contains('open')) document.getElementById('detail').innerHTML = '';
+  }, 300);
+}
+
+function renderPanel() {
+  if (mode === 'week') {
+    closeDetail();                        // 주간은 목록 안에서 펼쳐짐
+    renderWeek();
+  } else {
+    renderMonth();
+    if (monthSel) openDetail(); else closeDetail();
+  }
+}
+const renderAll = () => { renderToday(); renderPanel(); };
+
+document.getElementById('segWeek').onclick = () => {
+  mode = 'week';
+  document.getElementById('segWeek').classList.add('on');
+  document.getElementById('segMonth').classList.remove('on');
+  renderPanel();
+};
+document.getElementById('segMonth').onclick = () => {
+  mode = 'month';
+  monthSel = null;
+  document.getElementById('segMonth').classList.add('on');
+  document.getElementById('segWeek').classList.remove('on');
+  renderPanel();
+};
+
+/* ── 근무표 받아오기 ────────────────────────────
+   깃허브에 올려둔 파일 주소. 아래 한 줄만 네 주소로 바꾸면 된다.
+   ============================================== */
+const DATA_URL = 'https://raw.githubusercontent.com/doodoongpark/mom-schedule/refs/heads/main/schedule.json';
+
+// 인터넷에서 받아오고, 실패하면 폰에 저장해둔 걸 그대로 쓴다
+async function syncMonthly() {
+  try {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    if (!res.ok) return;
+    const obj = await res.json();
+    const months = Object.keys(obj).filter(k => /^\d{4}-\d{2}$/.test(k));
+    if (!months.length) return;
+
+    months.forEach(k => { monthlyData[k] = obj[k]; });
+    store.save('monthly', monthlyData);
+    store.save('syncedAt', { at: new Date().toISOString() });
+    renderAll();
+  } catch (e) {
+    // 인터넷이 없거나 파일을 못 읽었다. 저장해둔 근무표로 그냥 돌아간다.
+  }
+}
+
+// 근무표 데이터 넣기 (인터넷이 안 될 때 쓰는 예비 수단)
+document.getElementById('dataLink').onclick = () => {
+  const saved = Object.keys(monthlyData).sort();
+  const s = store.load('syncedAt');
+  const when = s && s.at
+    ? new Date(s.at).toLocaleString('ko-KR', { dateStyle:'short', timeStyle:'short' })
+    : '아직 못 받아옴';
+  document.getElementById('dataSaved').innerHTML =
+    (saved.length ? '넣어둔 달: '+saved.join(', ') : '아직 넣어둔 달이 없어요')+
+    '<br>마지막으로 받아온 때: '+when;
+  document.getElementById('dataErr').hidden = true;
+  document.getElementById('dataInput').value = '';
+  document.getElementById('dataModal').hidden = false;
+};
+
+document.getElementById('dataNo').onclick = () => {
+  document.getElementById('dataModal').hidden = true;
+};
+
+document.getElementById('dataYes').onclick = () => {
+  const err = document.getElementById('dataErr');
+  let obj;
+  try {
+    obj = JSON.parse(document.getElementById('dataInput').value);
+  } catch (e) {
+    err.textContent = '형식이 올바르지 않아요. 받은 그대로 붙여넣었는지 확인해주세요.';
+    err.hidden = false; return;
+  }
+  const months = Object.keys(obj).filter(k => /^\d{4}-\d{2}$/.test(k));
+  if (!months.length) {
+    err.textContent = '달 정보를 찾을 수 없어요. (예: "2026-08")';
+    err.hidden = false; return;
+  }
+  months.forEach(k => { monthlyData[k] = obj[k]; });
+  store.save('monthly', monthlyData);
+  document.getElementById('dataModal').hidden = true;
+  renderAll();
+};
+
+renderAll();
+syncMonthly();   // 켜자마자 최신 근무표를 받아온다
+
+// 시간이 흐르면 카드가 알아서 바뀌게 (1분마다)
+setInterval(() => {
+  const d = strip(new Date());
+  if (+d !== +today) { today = d; weekStart = addDays(today, -today.getDay()); renderAll(); }
+  else renderToday();
+}, 60000);
+</script>
+</body>
+</html>

@@ -28,26 +28,32 @@
   }
   .wrap { max-width:480px; margin:0 auto; padding:20px 16px 48px; }
 
-  /* 히어로 카드 — 배경은 '근무 중'일 때만 색이 들어감 */
-  .today{border-radius:20px;padding:20px;border:2px solid #E4E7EC;background:#fff;
-    color:var(--ink);margin-bottom:16px}
-  .today.bg-day{background:var(--day-bg);border-color:var(--day-line);color:var(--day-ink)}
-  .today.bg-night{background:var(--night-bg);border-color:var(--night-line);color:var(--night-ink)}
+  /* 히어로 카드 — 위는 근무 색 띠, 아래는 흰 바탕 */
+  .today{border-radius:20px;overflow:hidden;background:#fff;
+    border:1px solid var(--line);margin-bottom:16px}
 
-  .datesec{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-  .datesec .dtxt{font-size:20px;font-weight:700}
-  .tbadge{font-size:16px;font-weight:700;padding:4px 11px;border-radius:20px;flex:none}
-  .tbadge.day{background:#F7E4BC;color:var(--day-ink);border:1.5px solid #E2C387}
-  .tbadge.night{background:#CFE1F5;color:var(--night-ink);border:1.5px solid #A5C5E6}
-  .tbadge.off{background:#EDEFF2;color:#6B7280;border:1.5px solid #DADDE2}
-  .tbadge.leave{background:#D5EADD;color:var(--leave-ink);border:1.5px solid #AED3BF}
+  .thead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:14px 20px}
+  .thead .tdate{font-size:20px;font-weight:600;color:#fff}
+  .thead .tbadge{font-size:16px;font-weight:700;flex:none;
+    padding:4px 12px;border-radius:20px}
+  .tbadge.day{background:var(--day-bg);color:var(--day-ink);border:1.5px solid #EDD5A0}
+  .tbadge.night{background:var(--night-bg);color:var(--night-ink);border:1.5px solid #BDD5EE}
+  .tbadge.off{background:#F2F4F6;color:#7A8089;border:1.5px solid #E1E4E8}
+  .tbadge.leave{background:var(--leave-bg);color:var(--leave-ink);border:1.5px solid #BFDECB}
+  .today.hd-day .thead{background:#7A5210}
+  .today.hd-night .thead{background:#2B3A6B}
+  .today.hd-off .thead{background:#5A616B}
+  .today.hd-leave .thead{background:#1E6B47}
 
-  .ttl{font-size:24px;font-weight:800;line-height:1.35;letter-spacing:-.4px}
-  .tdesc{font-size:16px;opacity:.7;margin-top:7px}
+  .tbody{padding:20px}
+  .ttl{font-size:24px;font-weight:800;line-height:1.35;letter-spacing:-.4px;color:var(--ink)}
+  .tdesc{font-size:16px;font-weight:500;color:var(--ink-soft);margin-top:7px}
 
-  .mates{margin-top:18px;padding-top:16px;border-top:1px solid rgba(0,0,0,.1);font-size:16px}
-  .mates .lb{opacity:.7;margin-bottom:5px;font-size:15px}
-  .mates .nm{font-weight:700;line-height:1.5}
+  .mates{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);
+    display:flex;flex-wrap:wrap;gap:6px}
+  .mates .nm{font-size:16px;font-weight:600;color:var(--ink);
+    background:#F2F4F6;border:1.5px solid #E1E4E8;padding:5px 13px;border-radius:20px}
 
   .seg{display:flex;background:#E9EBEF;border-radius:12px;padding:4px;margin-bottom:14px}
   .seg button{flex:1;padding:11px 0;border:none;border-radius:9px;background:none;
@@ -411,20 +417,22 @@ function nowState() {
 function renderToday() {
   const st = nowState();
   const box = document.getElementById('today');
-  box.className = 'today bg-' + st.bg;
+  box.className = 'today hd-' + st.badge;      // 위 띠 색은 오늘 근무 타입
 
-  let html = '<div class="datesec"><span class="dtxt">'+fmtFull(today)+'</span>'+
-             '<span class="tbadge '+st.badge+'">'+LABEL[st.badge]+'</span></div>'+
-             '<div class="ttl">'+st.title+'</div>';
+  let html = '<div class="thead">'+
+      '<span class="tdate">'+fmtFull(today)+'</span>'+
+      '<span class="tbadge '+st.badge+'">'+LABEL[st.badge]+'</span>'+
+    '</div><div class="tbody">'+
+      '<div class="ttl">'+st.title+'</div>';
 
   if (st.desc) html += '<div class="tdesc">'+st.desc+'</div>';
 
   if (st.mates) {
     const m = coworkers(today);
-    if (m.length) html += '<div class="mates"><div class="lb">오늘 같이 일하는 분</div>'+
-                          '<div class="nm">'+m.join(' · ')+'</div></div>';
+    if (m.length) html += '<div class="mates">'+
+      m.map(n => '<span class="nm">'+n+'</span>').join('')+'</div>';
   }
-  box.innerHTML = html;
+  box.innerHTML = html + '</div>';
 }
 
 const START = new Date(2026, 6, 1);   // 근무표가 있는 첫 날. 이전은 보여주지 않는다

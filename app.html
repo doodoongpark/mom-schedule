@@ -147,6 +147,14 @@
   .editbtn.solid{background:var(--ink);color:#fff;border-color:var(--ink)}
   .editbtn.solid:active{opacity:.85;background:var(--ink)}
 
+  /* 당겨서 새로고침 */
+  .ptr{position:fixed;top:-58px;left:0;right:0;height:58px;z-index:200;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    font-size:15px;font-weight:600;color:var(--ink-soft);opacity:0;pointer-events:none}
+  .ptr.ready{color:var(--ink)}
+  .ptr .arrow{display:inline-block;transition:transform .2s ease}
+  .ptr.ready .arrow{transform:rotate(180deg)}
+
   .datalink{display:block;margin:22px auto 0;background:none;border:none;
     font-family:inherit;font-size:15px;font-weight:500;color:#9AA0A8;
     text-decoration:underline;cursor:pointer}
@@ -173,6 +181,7 @@
 </style>
 </head>
 <body>
+<div class="ptr" id="ptr"><span class="arrow">↓</span><span id="ptrText">당겨서 새로고침</span></div>
 <div class="wrap">
   <div id="today"></div>
 
@@ -743,6 +752,49 @@ document.getElementById('dataYes').onclick = () => {
   document.getElementById('dataModal').hidden = true;
   renderAll();
 };
+
+/* ── 당겨서 새로고침 ──────────────────────────────
+   맨 위에서 아래로 쭉 당기면 화면을 다시 받아온다 */
+(function () {
+  const ptr  = document.getElementById('ptr');
+  const text = document.getElementById('ptrText');
+  const LIMIT = 70;                      // 이만큼 당기면 새로고침
+  let startY = 0, pulling = false, moved = 0;
+
+  const reset = () => {
+    pulling = false; moved = 0;
+    ptr.style.transition = 'transform .2s ease, opacity .2s ease';
+    ptr.style.transform = ''; ptr.style.opacity = '';
+    ptr.classList.remove('ready');
+  };
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY > 0 || e.touches.length !== 1) return;
+    startY = e.touches[0].clientY;
+    pulling = true; moved = 0;
+    ptr.style.transition = 'none';
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    moved = e.touches[0].clientY - startY;
+    if (moved <= 0 || window.scrollY > 0) { reset(); return; }
+    e.preventDefault();                  // 화면이 같이 밀리지 않게
+    const d = Math.min(moved * 0.5, 95);
+    ptr.style.transform = 'translateY(' + d + 'px)';
+    ptr.style.opacity = Math.min(d / LIMIT, 1);
+    ptr.classList.toggle('ready', d >= LIMIT);
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling) return;
+    if (Math.min(moved * 0.5, 95) >= LIMIT) {
+      text.textContent = '불러오는 중…';
+      ptr.classList.remove('ready');
+      location.reload();                 // 껍데기가 최신 화면을 다시 받아온다
+    } else reset();
+  });
+})();
 
 renderAll();
 syncMonthly();   // 켜자마자 최신 근무표를 받아온다

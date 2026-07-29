@@ -356,8 +356,13 @@ const GRACE = 120;   // 나이트 퇴근 후 "수고하셨어요"를 띄우는 �
 const fmtFull = d =>
   d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+WEEK[d.getDay()]+')';
 
-// 남은 시간을 "N시간" / "N분"으로
-const leftWord = m => m >= 60 ? Math.floor(m/60)+'시간' : Math.max(1, m)+'분';
+// 남은 시간을 "N시간 M분" / "N시간" / "M분"으로
+const leftWord = m => {
+  const h = Math.floor(m / 60), mm = m % 60;
+  if (h && mm) return h + '시간 ' + mm + '분';
+  if (h) return h + '시간';
+  return Math.max(1, mm) + '분';
+};
 
 // 위에 있는 조건이 이긴다
 function nowState() {
@@ -400,7 +405,7 @@ function nowState() {
   if (inAt !== null) {
     const left = inAt - t;
     return left <= 60
-      ? { badge:cur, bg:'none', title:'1시간 뒤 출근입니다. 엄마 화이팅!',
+      ? { badge:cur, bg:'none', title:leftWord(left)+' 뒤 출근입니다. 엄마 화이팅!',
           desc:inTime+' 출근', mates:true }
       : { badge:cur, bg:'none', title:leftWord(left)+' 뒤 출근',
           desc:inTime+' 출근', mates:true };

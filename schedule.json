@@ -1,0 +1,6 @@
+{
+  "2026-07": {
+    "shifts": "ODDNNOODDNNOODDNNOODDNNOODDNNOO",
+    "dayOnlyOff": [4, 8, 12, 16, 20, 22, 24, 28, 30]
+  }
+}

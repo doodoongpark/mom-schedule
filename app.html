@@ -246,12 +246,13 @@ const PATTERN = ['day','day','night','night','off','off'];
 const OFFSET  = { A:0, C:2, B:4 };                 // 조별로 밀린 일수
 
 const ME = '배광월';
-const STAFF = [
-  { name:'엄선자', team:'A' }, { name:'김명숙', team:'A' }, { name:'배광월', team:'A' },
-  { name:'정은진', team:'C' }, { name:'명윤아', team:'C' }, { name:'윤경애', team:'C' },
-  { name:'장정숙', team:'B' }, { name:'임인숙', team:'B' }, { name:'이미화', team:'B' }
-];
-const DAY_ONLY = { name:'이안희' };   // 주간 전담. 쉬는 날은 근무표 데이터에서 읽는다
+// 기본 명단. 근무표 데이터에 staff가 있으면 그 달은 그걸 쓴다
+const DEFAULT_STAFF = {
+  '엄선자':'A', '김명숙':'A', '배광월':'A',
+  '정은진':'C', '명윤아':'C', '윤경애':'C',
+  '장정숙':'B', '임인숙':'B', '이미화':'B'
+};
+const DEFAULT_DAY_ONLY = '이안희';   // 주간 전담
 
 const TIME  = { dayIn:'09:00', dayOut:'18:00', nightIn:'17:30', nightOut:'09:00' };
 const LABEL = { day:'데이', night:'나이트', off:'휴무', leave:'연차' };
@@ -297,10 +298,14 @@ function monthlyShift(d) {
   return CHAR2SHIFT[rec.shifts[d.getDate()-1]] || null;
 }
 
-const myTeam  = STAFF.find(p => p.name === ME).team;
-const shiftOf = d => overrides[key(d)]         // 1층: 손으로 고친 날
-                  || monthlyShift(d)           // 2층: 넣어둔 근무표
-                  || teamShift(myTeam, d);     // 3층: 6일 주기 계산
+// 그 달의 직원 명단 (없으면 기본 명단)
+const staffOf     = d => (monthlyData[monthKey(d)] || {}).staff || DEFAULT_STAFF;
+const dayOnlyName = d => (monthlyData[monthKey(d)] || {}).dayOnlyName || DEFAULT_DAY_ONLY;
+const myTeamOn    = d => staffOf(d)[ME] || 'A';
+
+const shiftOf = d => overrides[key(d)]           // 1층: 손으로 고친 날
+                  || monthlyShift(d)             // 2층: 넣어둔 근무표
+                  || teamShift(myTeamOn(d), d);  // 3층: 6일 주기 계산
 
 // 주간 전담은 근무표를 넣은 달에만 이름을 띄운다.
 // 데이터가 없으면 틀리게 보여주느니 아예 안 보여준다.
@@ -313,8 +318,9 @@ function dayOnlyWorks(d) {
 function coworkers(d) {
   const s = shiftOf(d);
   if (s === 'off' || s === 'leave') return [];
-  const list = STAFF.filter(p => p.name !== ME && teamShift(p.team,d) === s).map(p => p.name);
-  if (s === 'day' && dayOnlyWorks(d)) list.push(DAY_ONLY.name);
+  const staff = staffOf(d);
+  const list = Object.keys(staff).filter(n => n !== ME && teamShift(staff[n], d) === s);
+  if (s === 'day' && dayOnlyWorks(d)) list.push(dayOnlyName(d));
   return list;
 }
 
@@ -646,7 +652,7 @@ function openShiftPicker(d) {
     m.hidden = true;
     if (draft !== cur) {
       // 계산값과 같아지면 수정 기록 자체를 지운다
-      if (draft === teamShift(myTeam, d)) delete overrides[key(d)];
+      if (draft === teamShift(myTeamOn(d), d)) delete overrides[key(d)];
       else overrides[key(d)] = draft;
       store.save('overrides', overrides);
     }
